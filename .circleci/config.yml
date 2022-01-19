@@ -14,7 +14,7 @@ executors:
           DB_HOST: 127.0.0.1
           PG_HOST: 127.0.0.1
           PGUSER: tai
-      - image: circleci/postgres:13.5
+      - image: circleci/postgres:12.0
         environment:
           POSTGRES_DB: connect_circleci_demo_test
           POSTGRES_USER: tai
