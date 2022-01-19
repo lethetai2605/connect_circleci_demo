@@ -2,22 +2,18 @@ version: 2.1
 
 executors:
   default:
-    working_directory: ~/connect_circleci_demo
     docker:
-      - image: circleci/ruby:2.7.4
+      - image: circleci/ruby:2.6.3-node
         environment:
           BUNDLE_JOBS: 3
           BUNDLE_PATH: vendor/bundle
           BUNDLE_RETRY: 3
           BUNDLER_VERSION: 2.0.1
           RAILS_ENV: test
-          DB_HOST: 127.0.0.1
-          PG_HOST: 127.0.0.1
-          PGUSER: tai
-      - image: circleci/postgres:12.0
+      - image: circleci/mysql:5.7
+        command: [--default-authentication-plugin=mysql_native_password]
         environment:
-          POSTGRES_DB: connect_circleci_demo_test
-          POSTGRES_USER: tai
+          MYSQL_ALLOW_EMPTY_PASSWORD: true
 
 commands:
   configure_bundler:
@@ -29,7 +25,6 @@ commands:
             echo 'export BUNDLER_VERSION=$(cat Gemfile.lock | tail -1 | tr -d " ")' >> $BASH_ENV
             source $BASH_ENV
             gem install bundler
-
 jobs:
   build:
     executor: default
@@ -37,26 +32,28 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - connect_circleci_demo-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
-            - connect_circleci_demo-
+            - rails_demo_bundler-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+            - rails_demo_bundler-
       - configure_bundler
       - run:
           name: Install bundle
           command: bundle install
       - run:
           name: Wait for DB
-          command: dockerize -wait tcp://127.0.0.1:5432 -timeout 1m
+          command: dockerize -wait tcp://127.0.0.1:3306 -timeout 1m
       - run:
           name: Setup DB
-          command: bundle exec rails db:create db:schema:load --trace
+          command: bundle exec rails db:setup --trace
+      - run:
+          name: Run Rubocop
+          command: bundle exec rubocop
+      - run:
+          name: Run Rspec
+          command: bundle exec rspec --format progress
       - save_cache:
-          key: connect_circleci_demo-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+          key: rails_demo_bundler-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
           paths:
             - vendor/bundle
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - ./connect_circleci_demo
 
 workflows:
   version: 2
